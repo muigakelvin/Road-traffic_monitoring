@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Planning - TrafficFlow Pro</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-navy: #1a2332;
+            --secondary-copper: #c77b3a;
+            --accent-blue: #00d4ff;
+            --background-charcoal: #2d3748;
+            --text-light: #e2e8f0;
+            --success-green: #10b981;
+            --warning-amber: #f59e0b;
+            --error-red: #ef4444;
+            --critical-purple: #8b5cf6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--background-charcoal) 100%);
+            color: var(--text-light);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Navigation */
+        .nav-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(26, 35, 50, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 30px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-light);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-blue);
+        }
+
+        .nav-links a.active {
+            color: var(--accent-blue);
+        }
+
+        .nav-links a.active::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent-blue);
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 80px 20px 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-light);
+            margin-bottom: 10px;
+        }
+
+        .page-subtitle {
+            font-size: 1.1rem;
+            color: rgba(226, 232, 240, 0.7);
+        }
+
+        /* Route Planning Container */
+        .route-planning-container {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 20px;
+            height: calc(100vh - 160px);
+        }
+
+        /* Left Panel */
+        .route-panel {
+            background: rgba(45, 55, 72, 0.8);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            margin-bottom: 30px;
+        }
+
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Input Groups */
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-light);
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(26, 35, 50, 0.9);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 8px;
+            color: var(--text-light);
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        .input-field::placeholder {
+            color: rgba(226, 232, 240, 0.5);
+        }
+
+        /* Route Options */
+        .route-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .route-option {
+            background: rgba(26, 35, 50, 0.6);
+            border: 2px solid rgba(0, 212, 255, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .route-option:hover {
+            border-color: var(--accent-blue);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .route-option.selected {
+            border-color: var(--accent-blue);
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        .route-option-icon {
+            font-size: 1.5rem;
+            color: var(--accent-blue);
+            margin-bottom: 8px;
+        }
+
+        .route-option-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: var(--primary-navy);
+        }
+
+        .btn-primary:hover {
+            background: #00b8e6;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(26, 35, 50, 0.8);
+            color: var(--text-light);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: var(--accent-blue);
+        }
+
+        /* Route Results */
+        .route-results {
+            margin-top: 30px;
+        }
+
+        .route-card {
+            background: rgba(26, 35, 50, 0.6);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .route-card:hover {
+            border-color: var(--accent-blue);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .route-card.selected {
+            border-color: var(--accent-blue);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .route-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .route-name {
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .route-duration {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .route-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .route-detail {
+            text-align: center;
+        }
+
+        .route-detail-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .route-detail-label {
+            font-size: 0.8rem;
+            color: rgba(226, 232, 240, 0.7);
+        }
+
+        .route-instructions {
+            background: rgba(26, 35, 50, 0.8);
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .instruction-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.1);
+        }
+
+        .instruction-item:last-child {
+            border-bottom: none;
+        }
+
+        .instruction-icon {
+            color: var(--accent-blue);
+            font-size: 0.9rem;
+        }
+
+        .instruction-text {
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        /* Map Container */
+        .map-container {
+            background: rgba(45, 55, 72, 0.8);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #route-map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .map-control-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(26, 35, 50, 0.95);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 6px;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .map-control-btn:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        /* Favorite Routes */
+        .favorite-routes {
+            margin-top: 30px;
+        }
+
+        .favorite-route {
+            background: rgba(26, 35, 50, 0.6);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .favorite-route:hover {
+            border-color: var(--accent-blue);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .favorite-route-info {
+            flex: 1;
+        }
+
+        .favorite-route-name {
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 5px;
+        }
+
+        .favorite-route-details {
+            font-size: 0.85rem;
+            color: rgba(226, 232, 240, 0.7);
+        }
+
+        .favorite-route-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            background: rgba(26, 35, 50, 0.8);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 4px;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .action-btn:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        /* Loading States */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: rgba(226, 232, 240, 0.7);
+        }
+
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(0, 212, 255, 0.3);
+            border-top: 3px solid var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .route-planning-container {
+                grid-template-columns: 350px 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .route-planning-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .route-panel {
+                order: 2;
+            }
+            
+            .map-container {
+                order: 1;
+                height: 400px;
+            }
+            
+            .page-title {
+                font-size: 2rem;
+            }
+            
+            .route-options {
+                grid-template-columns: 1fr;
+            }
+            
+            .route-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="nav-header">
+        <div class="logo">
+            <i class="fas fa-traffic-light"></i>
+            <span>TrafficFlow Pro</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="index.html">Dashboard</a></li>
+            <li><a href="analytics.html">Analytics</a></li>
+            <li><a href="routes.html" class="active">Routes</a></li>
+            <li><a href="settings.html">Settings</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Route Planning</h1>
+            <p class="page-subtitle">Plan optimal routes with real-time traffic awareness and predictive analytics</p>
+        </div>
+
+        <!-- Route Planning Container -->
+        <div class="route-planning-container">
+            <!-- Left Panel -->
+            <div class="route-panel">
+                <!-- Route Input -->
+                <div class="panel-section">
+                    <h3 class="panel-title">
+                        <i class="fas fa-map-marker-alt"></i>
+                        Plan Your Route
+                    </h3>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Origin</label>
+                        <input type="text" class="input-field" id="origin-input" placeholder="Enter starting location or click on map">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Destination</label>
+                        <input type="text" class="input-field" id="destination-input" placeholder="Enter destination or click on map">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Departure Time</label>
+                        <input type="datetime-local" class="input-field" id="departure-time">
+                    </div>
+                </div>
+
+                <!-- Route Options -->
+                <div class="panel-section">
+                    <h3 class="panel-title">
+                        <i class="fas fa-route"></i>
+                        Route Preferences
+                    </h3>
+                    
+                    <div class="route-options">
+                        <div class="route-option selected" data-option="fastest">
+                            <div class="route-option-icon">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                            <div class="route-option-label">Fastest</div>
+                        </div>
+                        
+                        <div class="route-option" data-option="shortest">
+                            <div class="route-option-icon">
+                                <i class="fas fa-compress-alt"></i>
+                            </div>
+                            <div class="route-option-label">Shortest</div>
+                        </div>
+                        
+                        <div class="route-option" data-option="efficient">
+                            <div class="route-option-icon">
+                                <i class="fas fa-balance-scale"></i>
+                            </div>
+                            <div class="route-option-label">Efficient</div>
+                        </div>
+                        
+                        <div class="route-option" data-option="scenic">
+                            <div class="route-option-icon">
+                                <i class="fas fa-mountain"></i>
+                            </div>
+                            <div class="route-option-label">Scenic</div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button class="btn btn-primary" id="calculate-route-btn">
+                            <i class="fas fa-calculator"></i>
+                            Calculate Route
+                        </button>
+                        
+                        <button class="btn btn-secondary" id="clear-route-btn">
+                            <i class="fas fa-times"></i>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Route Results -->
+                <div class="panel-section route-results" id="route-results" style="display: none;">
+                    <h3 class="panel-title">
+                        <i class="fas fa-list"></i>
+                        Route Options
+                    </h3>
+                    <div id="route-cards">
+                        <!-- Route cards will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Favorite Routes -->
+                <div class="panel-section favorite-routes">
+                    <h3 class="panel-title">
+                        <i class="fas fa-star"></i>
+                        Favorite Routes
+                    </h3>
+                    <div id="favorite-routes-list">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading favorite routes...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="map-container">
+                <div id="route-map"></div>
+                
+                <div class="map-controls">
+                    <button class="map-control-btn" id="locate-route-btn" title="Locate Position">
+                        <i class="fas fa-location-arrow"></i>
+                    </button>
+                    <button class="map-control-btn" id="fullscreen-route-btn" title="Toggle Fullscreen">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                    <button class="map-control-btn" id="traffic-layer-btn" title="Toggle Traffic Layer">
+                        <i class="fas fa-traffic-light"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="js/routes.js"></script>
+</body>
+</html>
